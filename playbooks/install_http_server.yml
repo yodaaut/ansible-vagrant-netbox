@@ -1,0 +1,94 @@
+---
+- name: HTTP Server Setup 
+  hosts: all
+  gather_facts: no
+  become: yes
+
+  vars:
+    - key_size: 4096
+    - key_type: RSA # Others include DSA, ECC, Ed25519, Ed448, X25519, X448
+    - country_name: AT
+    - email_address: "admin@{{ ansible_fqdn }}"
+    - organization_name: netbox
+    - nginx_server_name: "{{ ansible_fqdn }}"
+    - ssl_certificate: "/etc/pki/tls/certs/{{ ansible_fqdn }}.crt"
+    - ssl_certificate_csr: "/etc/pki/tls/csr/{{ ansible_fqdn }}.csr"
+    - ssl_certificate_key: "/etc/pki/tls/private/{{ ansible_fqdn }}.key"
+
+  handlers:
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+  pre_tasks:
+    - name: install dependency
+      package:
+        name:
+          - python3-pyOpenSSL
+          - python3-libselinux
+          - python3-libsemanage
+
+    - name: Ensure csr directory exists
+      file:
+        path: /etc/pki/tls/csr
+        mode: 0755
+        state: directory
+
+  tasks:
+    - name: Generate an OpenSSL private key
+      openssl_privatekey:
+        path: "{{ ssl_certificate_key }}"
+        size: "{{ key_size }}"
+        type: "{{ key_type }}"
+
+    - name: Generate an OpenSSL Certificate Signing Request with Subject information
+      openssl_csr:
+        path: "{{ ssl_certificate_csr }}"
+        privatekey_path: "{{ ssl_certificate_key }}"
+        country_name: "{{ country_name }}"
+        organization_name: "{{ organization_name }}"
+        email_address: "{{ email_address }}"
+        common_name: "{{ ansible_fqdn }}"
+
+    - name: Generate a self-signed Certificate
+      community.crypto.x509_certificate:
+        path: "{{ ssl_certificate }}"
+        privatekey_path: "{{ ssl_certificate_key }}"
+        csr_path: "{{ ssl_certificate_csr }}"
+        selfsigned_not_after: +365d
+        provider: selfsigned
+      notify:
+        - restart nginx
+
+    - name: Install nginx
+      package:
+        name:
+          - nginx
+
+    - name: Copy nginx server configuration
+      template:
+        src: nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: 0644
+      notify:
+        - restart nginx
+
+    - name: Copy netbox nginx configuration
+      template:
+        src: netbox.conf.j2
+        dest: /etc/nginx/conf.d/netbox.conf
+        owner: root
+        group: root
+        mode: 0644
+      notify:
+        - restart nginx
+
+    - name: Set httpd_can_network_connect flag on and keep it persistent across reboots
+      ansible.posix.seboolean:
+        name: httpd_can_network_connect
+        state: yes
+        persistent: yes 

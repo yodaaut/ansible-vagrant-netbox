@@ -1,0 +1,8 @@
+---
+- name: Install and configure gunicorn.
+  hosts: all
+  gather_facts: no
+  become: yes
+
+  tasks:
+

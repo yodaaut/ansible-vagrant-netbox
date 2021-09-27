@@ -1,0 +1,18 @@
+---
+netbox_secret_key: 'sb3hOw8$IhK@VL+m32aPgJLB(bUd==vhMx+i5_=4K6(ZR$eLfb'
+db_user: netbox
+db_name: netbox
+db_password: netbox
+pg_hba: /var/lib/pgsql/data/pg_hba.conf
+
+operatingsystem: PVE 6.4
+ntp_server:
+  - 0.at.pool.ntp.org
+  - 1.at.pool.ntp.org
+  - 2.at.pool.ntp.org
+  - 3.at.pool.ntp.org
+nameserver:
+  - 1.1.0.0
+  - 1.1.1.1
+  - 8.8.8.8
+  - 8.8.4.4

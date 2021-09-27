@@ -1,0 +1,33 @@
+---
+- name: Install LDAP Authentication.
+  hosts: all
+  gather_facts: false
+
+  handlers:
+    - name: restart netbox
+      service:
+        name: netbox
+        state: restarted
+        enabled: yes
+
+  tasks:
+    - name: install django-auth-ldap
+      pip:
+        name: django-auth-ldap
+        extra_args: "--upgrade"
+        virtualenv: /opt/netbox/venv
+        virtualenv_command: /bin/python3 -m venv
+      become: yes
+      become_user: netbox
+      register: pip_result
+      until: pip_result is success
+
+    - name: configure ldap auth
+      copy:
+        content: ""
+        dest: /opt/netbox/netbox/netbox/ldap_config.py
+        owner: netbox
+        group: netbox
+        mode: 0644
+      notify:
+        - restart netbox

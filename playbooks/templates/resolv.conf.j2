@@ -1,0 +1,6 @@
+{{ ansible_managed | comment }}
+
+{% for name_server in nameserver | shuffle(seed=inventory_hostname) %}
+nameserver {{ name_server }}
+{% endfor %}
+search {{ ansible_facts['domain'] }}

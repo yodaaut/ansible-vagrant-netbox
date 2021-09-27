@@ -1,0 +1,34 @@
+---
+- name: Install and configure chrony.
+  hosts: all
+  gather_facts: no
+  become: yes
+
+  handlers:
+    - name: Restart Chrony
+      service:
+        name: chronyd
+        state: restarted
+
+  tasks:
+    - name: Install chrony.
+      package:
+        name:
+          - chrony
+        state: present
+
+    - name: Copy chrony.conf template.
+      template:
+        src: chrony.conf.j2
+        dest: /etc/chrony.conf
+        owner: root
+        group: root
+        mode: 0644
+      notify:
+        - Restart Chrony
+
+    - name: Set Timezone.
+      timezone:
+        name: Europe/Vienna
+      notify:
+        - Restart Chrony

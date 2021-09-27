@@ -1,0 +1,64 @@
+---
+- name: Run system updates on freshly provisioned system.
+  hosts: all
+  gather_facts: false
+  become: yes
+
+  handlers:
+    - name: Reload NetworkManager
+      service:
+        name: NetworkManager
+        state: reloaded
+
+  tasks:
+    - name: Run system updates on freshly provisioned system.
+      package:
+        name: "*"
+        state: latest
+      when: ansible_local.provision.host.state is undefined
+
+    - name: Create directory for ansible custom facts.
+      file:
+        state: directory
+        recurse: yes
+        path: /etc/ansible/facts.d
+
+    - name: Install custom provision fact.
+      copy:
+        src: provision.fact
+        dest: /etc/ansible/facts.d
+
+    - name: disable DNS in NetworkManager.
+      ini_file:
+        path: /etc/NetworkManager/NetworkManager.conf
+        state: present
+        no_extra_spaces: yes
+        section: main
+        option: dns
+        value: none
+        owner: root
+        group: root
+        mode: 0644
+        backup: no
+      notify: Reload NetworkManager
+
+    - name: Copy resolv.conf Template.
+      template:
+        src: resolv.conf.j2
+        dest: /etc/resolv.conf
+        owner: root
+        group: root
+        mode: 0644
+        backup: no
+      notify: Reload NetworkManager
+
+    - name: Ensure hostname resolves correctly to IP in /etc/hosts.
+      lineinfile:
+        path: /etc/hosts
+        regexp: ".*{{ ansible_hostname }}$"
+        line: "{{ ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0]) }} {{ ansible_fqdn }} {{ ansible_hostname }}"
+        owner: root
+        group: root
+        mode: 0644
+        state: present
+        backup: no

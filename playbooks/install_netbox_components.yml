@@ -1,0 +1,245 @@
+---
+- name: Install and configure NetBox.
+  hosts: all
+  gather_facts: no
+  become: yes
+
+  handlers:
+    - name: restart netbox
+      service:
+        name: netbox
+        state: restarted
+        enabled: yes
+
+    - name: restart netbox rqworker
+      service:
+        name: netbox-rq
+        state: restarted
+        enabled: yes
+
+  tasks:
+    - name: Install NetBox dependencies.
+      package:
+        name:
+          - gcc
+          - python39
+          - python39-devel
+          - python39-pip
+          - libxml2-devel
+          - libxslt-devel
+          - libffi-devel
+          - libpq-devel
+          - openssl-devel
+          - redhat-rpm-config
+          - git
+
+    - name: Upgrade pip
+      pip:
+        name:
+          - pip
+        executable: pip3
+        extra_args: "--upgrade"
+        state: latest
+
+    - name: Clone NetBox Git Repository.
+      git:
+        repo: 'https://github.com/netbox-community/netbox.git'
+        dest: /opt/netbox
+        version: master
+        depth: 1
+      register: netbox_download
+
+    - name: Create NetBox System Group.
+      group:
+        name: netbox
+        system: yes
+        state: present
+
+    - name: Create NetBox System User.
+      user:
+        name: netbox
+        system: yes
+        group: netbox
+        state: present
+
+    - name: Ensure netbox user has access to media.
+      file:
+        path: /opt/netbox/netbox/media
+        recurse: yes
+        owner: netbox
+        state: directory
+
+    - name: Upgrade pip in virtualenv
+      pip:
+        name:
+          - pip
+        state: present
+        extra_args: "--upgrade"
+        virtualenv: /opt/netbox/venv
+        virtualenv_command: python3 -m venv
+      register: pip_result
+      until: pip_result is success
+
+    - name: Install necessary system packages
+      pip:
+        name:
+          - wheel
+        state: present
+        extra_args: "--upgrade"
+        virtualenv: /opt/netbox/venv
+        virtualenv_command: python3 -m venv
+      register: pip_result
+      until: pip_result is success
+
+    - name: Install required Python packages
+      pip:
+        requirements: /opt/netbox/requirements.txt
+        virtualenv: /opt/netbox/venv
+        virtualenv_command: python3 -m venv
+      register: pip_result
+      until: pip_result is success
+      notify:
+        - restart netbox
+        - restart netbox rqworker
+      when: netbox_download.changed
+
+    #TODO Install optional packages (if any)
+
+    #TODO move higher
+    - name: Copy configuration file.
+      template:
+        src: configuration.py.j2
+        dest: /opt/netbox/netbox/netbox/configuration.py
+        owner: netbox
+        group: netbox
+        mode: 0644
+      notify:
+        - restart netbox
+        - restart netbox rqworker
+
+    #TODO what if false?
+    - name: Test schema migrations integrity
+      django_manage:
+        project_path: /opt/netbox/netbox
+        virtualenv: /opt/netbox/venv
+        command: showmigrations
+      register: netbox_schema
+      #when: netbox_download.changed
+
+    - name: Show result
+      debug:
+        var: netbox_schema
+
+    - name: Apply any database migrations
+      django_manage:
+        project_path: /opt/netbox/netbox
+        virtualenv: /opt/netbox/venv
+        command: migrate
+      notify:
+        - restart netbox
+        - restart netbox rqworker
+      when: netbox_download.changed
+
+    - name: Trace any missing cable paths
+      django_manage:
+        project_path: /opt/netbox/netbox
+        virtualenv: /opt/netbox/venv
+        command: "trace_paths --no-input"
+      notify:
+        - restart netbox
+        - restart netbox rqworker
+      when: netbox_download.changed
+
+    - name: Build the local documentation
+      command:
+        cmd: mkdocs build
+        chdir: /opt/netbox
+      environment:
+        PATH: '/opt/netbox/venv/bin/:{{ ansible_env.PATH }}'
+      when: netbox_download.changed
+
+    - name: Collect static files
+      django_manage:
+        project_path: /opt/netbox/netbox
+        virtualenv: /opt/netbox/venv
+        command: "collectstatic --no-input"
+      notify:
+        - restart netbox
+        - restart netbox rqworker
+      when: netbox_download.changed
+
+    - name: Delete any stale content types
+      django_manage:
+        project_path: /opt/netbox/netbox
+        virtualenv: /opt/netbox/venv
+        command: "remove_stale_contenttypes --no-input"
+      notify:
+        - restart netbox
+        - restart netbox rqworker
+      when: netbox_download.changed
+
+    - name: Delete any expired user sessions
+      django_manage:
+        project_path: /opt/netbox/netbox
+        virtualenv: /opt/netbox/venv
+        command: clearsessions
+      notify:
+        - restart netbox
+        - restart netbox rqworker
+      when: netbox_download.changed
+
+    - name: Check if superuser exists
+      django_manage:
+        project_path: /opt/netbox/netbox
+        virtualenv: /opt/netbox/venv
+        command: shell -c 'import sys; from django.contrib.auth.models import User; print(User.objects.filter(username="admin").count(), end="")'
+      register: netbox_superuser
+    
+    - name: Create superuser
+      django_manage:
+        project_path: /opt/netbox/netbox
+        virtualenv: /opt/netbox/venv
+        command: "createsuperuser --noinput --username=admin --email=admin@{{ ansible_fqdn }}"
+      environment:
+        DJANGO_SUPERUSER_PASSWORD: "welcome"
+      notify:
+        - restart netbox
+        - restart netbox rqworker
+      when: netbox_superuser.out == "0"
+
+    - name: Schedule the Housekeeping Task
+      copy:
+        src: /opt/netbox/contrib/netbox-housekeeping.sh
+        dest: /etc/cron.daily/netbox-housekeeping.sh
+        mode: preserve
+        remote_src: yes
+      when: netbox_download.changed
+
+    - name: copy gunicorn configuration
+      copy:
+        src: /opt/netbox/contrib/gunicorn.py
+        dest: /opt/netbox/gunicorn.py
+        mode: preserve
+        remote_src: yes
+      notify:
+        - restart netbox
+        - restart netbox rqworker
+      when: netbox_download.changed
+
+    - name: copy systemd files
+      copy:
+        src: /opt/netbox/contrib/{{ item }}.service
+        dest: /etc/systemd/system/{{ item }}.service
+        mode: preserve
+        remote_src: yes
+      with_items:
+        - netbox-rq
+        - netbox
+      notify:
+        - restart netbox
+        - restart netbox rqworker
+      when: netbox_download.changed
+
+    - name: reload systemd
+      service:
+        daemon_reload: yes

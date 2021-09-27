@@ -1,0 +1,80 @@
+---
+- name: Install and configure PostgreSQL.
+  hosts: all
+  gather_facts: no
+  become: yes
+
+  handlers:
+    - name: Reload PostgreSQL
+      service:
+        name: postgresql.service
+        state: reloaded
+
+  pre_tasks:
+    - name: Install postgreSQL-Server.
+      package:
+        name:
+          - postgresql-server
+        state: present
+      # ubuntu: postgresql
+
+    - name: Install dependency psycopg2.
+      package:
+        name:
+          - python3-psycopg2
+        state: present
+
+  tasks:
+    - name: Find out if PostgreSQL is initialized"
+      stat:
+        path: "{{ pg_hba }}"
+      register: postgres_data
+
+    - name: Initialize PostgreSQL.
+      command:
+        cmd: postgresql-setup --initdb
+      when: not postgres_data.stat.exists
+
+    - name: Ensure PostgreSQL Server is running.
+      service:
+        name: postgresql.service
+        enabled: yes
+        state: started
+
+    - name: Create netbox database.
+      postgresql_db:
+        name: "{{ db_name }}"
+        state: present
+      become: yes
+      become_user: postgres
+
+    - name: Create db user.
+      postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        state: present
+      become: yes
+      become_user: postgres
+
+    - name: Grant db user access to netbox db"
+      postgresql_privs:
+        type: database
+        database: "{{ db_name }}"
+        roles: "{{ db_user }}"
+        grant_option: no
+        privs: all
+      become: yes
+      become_user: postgres
+
+    - name: Allow md5 connection for the db user.
+      postgresql_pg_hba:
+        dest: "{{ pg_hba }}"
+        contype: host
+        databases: all
+        method: md5
+        users: "{{ db_user }}"
+        create: yes
+      become: yes
+      become_user: postgres
+      notify: Reload PostgreSQL
+

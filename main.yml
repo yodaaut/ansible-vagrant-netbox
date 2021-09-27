@@ -1,0 +1,33 @@
+---
+- name: Install and Configure Netbox
+  hosts: all
+  gather_facts: true
+  vars:
+    netbox_config:
+      ALLOWED_HOSTS:
+        - "{{ ansible_fqdn }}"
+        - "{{ ansible_default_ipv4 }}"
+      TIME_ZONE: "Europe/Vienna"
+
+  tasks:
+    - name: install NetworkManager.
+      apt:
+        name:
+          - network-manager
+        update_cache: yes
+        cache_valid_time: 3600
+        state: present
+      become: yes
+      when:
+        - ansible_os_family == "Debian"
+
+- import_playbook: playbooks/pre_tasks.yml
+- import_playbook: playbooks/install_chrony.yml
+- import_playbook: playbooks/install_postgresql.yml
+- import_playbook: playbooks/install_redis.yml
+- import_playbook: playbooks/install_netbox_components.yml
+- import_playbook: playbooks/install_http_server.yml
+- import_playbook: playbooks/install_ldap_authentication.yml
+  when:
+    - ldap is defined
+    - ldap | bool
