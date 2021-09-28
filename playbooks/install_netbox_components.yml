@@ -120,7 +120,7 @@
     #TODO what if false?
     - name: Test schema migrations integrity
       django_manage:
-        project_path: /opt/netbox/netbox
+        app_path: /opt/netbox/netbox
         virtualenv: /opt/netbox/venv
         command: showmigrations
       register: netbox_schema
@@ -132,7 +132,7 @@
 
     - name: Apply any database migrations
       django_manage:
-        project_path: /opt/netbox/netbox
+        app_path: /opt/netbox/netbox
         virtualenv: /opt/netbox/venv
         command: migrate
       notify:
@@ -142,7 +142,7 @@
 
     - name: Trace any missing cable paths
       django_manage:
-        project_path: /opt/netbox/netbox
+        app_path: /opt/netbox/netbox
         virtualenv: /opt/netbox/venv
         command: "trace_paths --no-input"
       notify:
@@ -160,7 +160,7 @@
 
     - name: Collect static files
       django_manage:
-        project_path: /opt/netbox/netbox
+        app_path: /opt/netbox/netbox
         virtualenv: /opt/netbox/venv
         command: "collectstatic --no-input"
       notify:
@@ -170,7 +170,7 @@
 
     - name: Delete any stale content types
       django_manage:
-        project_path: /opt/netbox/netbox
+        app_path: /opt/netbox/netbox
         virtualenv: /opt/netbox/venv
         command: "remove_stale_contenttypes --no-input"
       notify:
@@ -180,7 +180,7 @@
 
     - name: Delete any expired user sessions
       django_manage:
-        project_path: /opt/netbox/netbox
+        app_path: /opt/netbox/netbox
         virtualenv: /opt/netbox/venv
         command: clearsessions
       notify:
@@ -190,14 +190,14 @@
 
     - name: Check if superuser exists
       django_manage:
-        project_path: /opt/netbox/netbox
+        app_path: /opt/netbox/netbox
         virtualenv: /opt/netbox/venv
         command: shell -c 'import sys; from django.contrib.auth.models import User; print(User.objects.filter(username="admin").count(), end="")'
       register: netbox_superuser
     
     - name: Create superuser
       django_manage:
-        project_path: /opt/netbox/netbox
+        app_path: /opt/netbox/netbox
         virtualenv: /opt/netbox/venv
         command: "createsuperuser --noinput --username=admin --email=admin@{{ ansible_fqdn }}"
       environment:
