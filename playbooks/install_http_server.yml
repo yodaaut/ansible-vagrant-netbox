@@ -53,7 +53,7 @@
         common_name: "{{ ansible_fqdn }}"
 
     - name: Generate a self-signed Certificate
-      community.crypto.x509_certificate:
+      openssl_certificate:
         path: "{{ ssl_certificate }}"
         privatekey_path: "{{ ssl_certificate_key }}"
         csr_path: "{{ ssl_certificate_csr }}"
