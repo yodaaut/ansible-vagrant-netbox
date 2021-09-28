@@ -76,7 +76,7 @@
         state: present
         extra_args: "--upgrade"
         virtualenv: /opt/netbox/venv
-        virtualenv_command: python3 -m venv
+        virtualenv_command: python3.9 -m venv
       register: pip_result
       until: pip_result is success
 
@@ -87,7 +87,7 @@
         state: present
         extra_args: "--upgrade"
         virtualenv: /opt/netbox/venv
-        virtualenv_command: python3 -m venv
+        virtualenv_command: python3.9 -m venv
       register: pip_result
       until: pip_result is success
 
@@ -95,7 +95,7 @@
       pip:
         requirements: /opt/netbox/requirements.txt
         virtualenv: /opt/netbox/venv
-        virtualenv_command: python3 -m venv
+        virtualenv_command: python3.9 -m venv
       register: pip_result
       until: pip_result is success
       notify:
