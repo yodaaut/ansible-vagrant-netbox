@@ -18,10 +18,11 @@
         state: present
       # ubuntu: postgresql
 
-    - name: Install dependency psycopg2.
+    - name: Install dependency psycopg2 and sudo.
       package:
         name:
           - python3-psycopg2
+          - sudo
         state: present
 
   tasks:
