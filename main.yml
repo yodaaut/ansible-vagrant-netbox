@@ -8,7 +8,7 @@
         - "{{ ansible_fqdn }}"
         - "{{ ansible_default_ipv4 }}"
       TIME_ZONE: "Europe/Vienna"
-    ntp: yes
+    ntp: no
     ldap: no
 
   tasks:
