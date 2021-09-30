@@ -99,4 +99,4 @@
         persistent: yes 
       when:
         - se_result is succeeded
-        - '"disabled" not in se_result'
+        - '"disabled" not in se_result.stdout'
