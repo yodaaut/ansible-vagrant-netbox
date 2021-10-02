@@ -9,7 +9,7 @@
 # access to the server via any other hostnames. The first FQDN in the list will be treated as the preferred name.
 #
 # Example: ALLOWED_HOSTS = ['netbox.example.com', 'netbox.internal.local']
-ALLOWED_HOSTS = ['{{ ansible_fqdn }}', '{{ ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0]) }}']
+ALLOWED_HOSTS = [{% for host in netbox_config.ALLOWED_HOSTS %}'{{ host }}', {% endfor %}]
 
 # PostgreSQL database configuration. See the Django documentation for a complete list of available parameters:
 #   https://docs.djangoproject.com/en/stable/ref/settings/#databases
@@ -260,7 +260,7 @@ SESSION_COOKIE_NAME = 'sessionid'
 SESSION_FILE_PATH = None
 
 # Time zone (default: UTC)
-TIME_ZONE = 'UTC'
+TIME_ZONE = '{{ netbox_config.TIME_ZONE }}'
 
 # Date/time formatting. See the following link for supported formats:
 # https://docs.djangoproject.com/en/stable/ref/templates/builtins/#date

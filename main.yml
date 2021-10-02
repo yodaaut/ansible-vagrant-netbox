@@ -6,12 +6,17 @@
     netbox_config:
       ALLOWED_HOSTS:
         - "{{ ansible_fqdn }}"
-        - "{{ ansible_default_ipv4 }}"
+        - "{{ ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0]) }}"
+        - "{{ ansible_fqdn }}:8443"
+        - "{{ ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0]) }}:8443"
       TIME_ZONE: "Europe/Vienna"
     ntp: no
     ldap: no
 
   tasks:
+    - name: set global vars
+      set_fact:
+        netbox_config: "{{ netbox_config }}"
     - name: install NetworkManager.
       apt:
         name:
