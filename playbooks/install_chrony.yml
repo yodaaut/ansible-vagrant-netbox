@@ -9,6 +9,7 @@
       service:
         name: chronyd
         state: restarted
+        enabled: yes
 
   tasks:
     - name: Install chrony.

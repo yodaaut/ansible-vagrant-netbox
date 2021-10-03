@@ -9,6 +9,7 @@
       service:
         name: NetworkManager
         state: reloaded
+        enabled: yes
 
   tasks:
     - name: Run system updates on freshly provisioned system.
