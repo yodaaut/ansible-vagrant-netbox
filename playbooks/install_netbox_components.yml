@@ -226,6 +226,20 @@
         - restart netbox rqworker
       when: netbox_download.changed
 
+    - name: change gunicorn bind address
+      lininfile:
+        path: /opt/netbox/gunicorn.py
+        regexp: "bind = '127.0.0.1:8001'"
+        line: "bind = '0.0.0.0:8001'"
+        owner: netbox
+        group: netbox
+        mode: 0644
+        state: present
+      notify:
+        - restart netbox
+      when:
+        - netbox_config.use_httpserver | bool
+
     - name: copy systemd files
       copy:
         src: /opt/netbox/contrib/{{ item }}.service
