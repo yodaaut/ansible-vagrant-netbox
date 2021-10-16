@@ -10,9 +10,8 @@
         - "{{ ansible_fqdn }}:8443"
         - "{{ ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0]) }}:8443"
       TIME_ZONE: "Europe/Vienna"
-      use_ntp: no
-      use_ldap: no
-      use_httpserver: yes
+    ntp: no
+    ldap: no
 
   tasks:
     - name: set global vars
@@ -32,16 +31,13 @@
 - import_playbook: playbooks/pre_tasks.yml
 - import_playbook: playbooks/install_chrony.yml
   when:
-    - netbox_config.use_ntp is defined
-    - netbox_config.use_ntp | bool
+    - ntp is defined
+    - ntp | bool
 - import_playbook: playbooks/install_postgresql.yml
 - import_playbook: playbooks/install_redis.yml
 - import_playbook: playbooks/install_netbox_components.yml
 - import_playbook: playbooks/install_http_server.yml
-  when:
-    - netbox_config.use_httpserver is defined
-    - netbox_config.use_httpserver | bool
 - import_playbook: playbooks/install_ldap_authentication.yml
   when:
-    - netbox_config.use_ldap is defined
-    - netbox_config.use_ldap | bool
+    - ldap is defined
+    - ldap | bool
